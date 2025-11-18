@@ -1,4 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
+const logger = require('../utils/logger');
 
 module.exports = (sequelize, DataTypes) => {
     const ActivityLog = sequelize.define('ActivityLog', {
@@ -74,7 +75,7 @@ module.exports = (sequelize, DataTypes) => {
                 metadata
             });
         } catch (error) {
-            console.error('Error logging activity:', error);
+            logger.error('Error logging activity:', error);
             return null;
         }
     };

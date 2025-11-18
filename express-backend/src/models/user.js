@@ -28,6 +28,18 @@ module.exports = (sequelize, DataTypes) => {
             validate: {
                 isIn: [['active', 'inactive', 'suspended']]
             }
+        },
+        email_verified: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        verification_token: {
+            type: DataTypes.STRING(512),
+            allowNull: true
+        },
+        name: {
+            type: DataTypes.STRING(100),
+            allowNull: true
         }
     }, {
         timestamps: false, // Disable Sequelize's timestamp handling

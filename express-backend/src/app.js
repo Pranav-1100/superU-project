@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
+const logger = require('./utils/logger');
 require('dotenv').config();
 
 // Import routes
@@ -44,6 +46,9 @@ app.use(cors({
     exposedHeaders: ['Content-Range', 'X-Content-Range'],
     credentials: true
 }));
+
+// HTTP request logging with Morgan
+app.use(morgan('combined', { stream: logger.stream }));
 
 // Routes
 app.use('/api', authRoutes);
@@ -107,7 +112,11 @@ app.use((err, req, res, next) => {
     }
 
     // Log error for debugging
-    console.error('Error:', err);
+    logger.logError(err, {
+        method: req.method,
+        url: req.url,
+        ip: req.ip
+    });
 
     // Generic error
     res.status(err.status || 500).json({
@@ -120,10 +129,10 @@ app.use((err, req, res, next) => {
 // Database initialization
 db.sequelize.sync()
     .then(() => {
-        console.log('Database synced successfully');
+        logger.info('Database synced successfully');
     })
     .catch((err) => {
-        console.error('Failed to sync database:', err);
+        logger.error('Failed to sync database', { error: err.message });
         process.exit(1);
     });
 

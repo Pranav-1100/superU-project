@@ -1,6 +1,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { Content, ContentNode, ContentEdit } = require('../models');
+const logger = require('../utils/logger');
 
 class ContentService {
     constructor() {
@@ -13,7 +14,7 @@ class ContentService {
 
     async scrapeUrl(url) {
         try {
-            console.log(`Starting to scrape URL: ${url}`);
+            logger.info(`Starting to scrape URL: ${url}`);
             const response = await this.axios.get(url, { timeout: 10000 });
             const $ = cheerio.load(response.data);
 
@@ -34,7 +35,7 @@ class ContentService {
                 meta
             };
         } catch (error) {
-            console.error(`Error scraping ${url}:`, error);
+            logger.error(`Error scraping ${url}:`, error);
             return null;
         }
     }
@@ -70,7 +71,7 @@ class ContentService {
 
             return content.id;
         } catch (error) {
-            console.error('Error creating content:', error);
+            logger.error('Error creating content:', error);
             throw error;
         }
     }

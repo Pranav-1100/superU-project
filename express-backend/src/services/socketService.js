@@ -1,4 +1,5 @@
 const { checkTeamPermissions } = require('../middleware/auth');
+const logger = require('../utils/logger');
 
 module.exports = (io) => {
     io.on('connection', (socket) => {
@@ -8,7 +9,7 @@ module.exports = (io) => {
 
             const room = `content_${content_id}`;
             socket.join(room);
-            console.log(`User ${user_id} joined room: ${room}`);
+            logger.info(`User ${user_id} joined room: ${room}`);
 
             socket.to(room).emit('user_joined', {
                 user_id,
@@ -22,7 +23,7 @@ module.exports = (io) => {
 
             const room = `content_${content_id}`;
             socket.leave(room);
-            console.log(`User ${user_id} left room: ${room}`);
+            logger.info(`User ${user_id} left room: ${room}`);
 
             socket.to(room).emit('user_left', {
                 user_id,

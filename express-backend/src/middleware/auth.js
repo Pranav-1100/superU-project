@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const logger = require('../utils/logger');
 const { TeamMember } = require('../models');
 const { Op } = require('sequelize');
 
@@ -17,7 +18,7 @@ const authMiddleware = (req, res, next) => {
 
         // Verify JWT_SECRET_KEY is set
         if (!process.env.JWT_SECRET_KEY) {
-            console.error('JWT_SECRET_KEY is not set!');
+            logger.error('JWT_SECRET_KEY is not set!');
             return res.status(500).json({
                 error: 'Server configuration error',
                 code: 'server_error'
@@ -68,7 +69,7 @@ const checkTeamPermissions = async (userId, teamId, requiredRoles = null) => {
 
         return !!member; // Returns true if member exists, false otherwise
     } catch (error) {
-        console.error('Error checking team permissions:', error);
+        logger.error('Error checking team permissions:', error);
         return false;
     }
 };
@@ -101,7 +102,7 @@ const requireTeamRole = (requiredRoles) => {
 
             next();
         } catch (error) {
-            console.error('Error in requireTeamRole middleware:', error);
+            logger.error('Error in requireTeamRole middleware:', error);
             return res.status(500).json({
                 error: 'Internal server error',
                 code: 'server_error'

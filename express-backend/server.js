@@ -2,12 +2,13 @@ require('dotenv').config();
 const app = require('./src/app');
 const http = require('http');
 const socketIo = require('socket.io');
+const logger = require('./src/utils/logger');
 
 // Validate required environment variables
 const requiredEnvVars = ['JWT_SECRET_KEY'];
 requiredEnvVars.forEach(varName => {
     if (!process.env[varName]) {
-        console.error(`Error: ${varName} environment variable is not set`);
+        logger.error(`Environment variable not set: ${varName}`);
         process.exit(1);
     }
 });
@@ -37,24 +38,24 @@ require('./src/services/socketService')(io);
 const PORT = process.env.PORT || 3002;
 
 server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Allowed CORS origins: ${allowedOrigins.join(', ')}`);
+    logger.info(`Server running on port ${PORT}`);
+    logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`Allowed CORS origins: ${allowedOrigins.join(', ')}`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-    console.log('SIGTERM signal received: closing HTTP server');
+    logger.info('SIGTERM signal received: closing HTTP server');
     server.close(() => {
-        console.log('HTTP server closed');
+        logger.info('HTTP server closed');
         process.exit(0);
     });
 });
 
 process.on('SIGINT', () => {
-    console.log('SIGINT signal received: closing HTTP server');
+    logger.info('SIGINT signal received: closing HTTP server');
     server.close(() => {
-        console.log('HTTP server closed');
+        logger.info('HTTP server closed');
         process.exit(0);
     });
 });
