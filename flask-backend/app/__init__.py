@@ -1,8 +1,9 @@
-from flask import Flask, jsonify, request, make_response  
+from flask import Flask, jsonify, request, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_socketio import SocketIO
+from flask_mail import Mail
 from redis import Redis
 from datetime import timedelta
 import os
@@ -10,6 +11,7 @@ import os
 db = SQLAlchemy()
 jwt = JWTManager()
 socketio = SocketIO()
+mail = Mail()
 redis_client = Redis(host='redis', port=6379, db=0)
 
 def configure_email(app):

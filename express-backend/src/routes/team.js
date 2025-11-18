@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Team, TeamMember, Invitation, User } = require('../models');
+const { Team, TeamMember, Invitation, User, ActivityLog } = require('../models');
 const { authMiddleware, checkTeamPermissions, requireTeamRole } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validation');
 const emailService = require('../services/emailService');
@@ -22,6 +22,16 @@ router.post('/create', authMiddleware, validate(schemas.createTeam), async (req,
             user_id: userId,
             role: 'owner'
         });
+
+        // Log activity
+        await ActivityLog.logActivity(
+            team.id,
+            userId,
+            'team_created',
+            'team',
+            team.id,
+            { team_name: name }
+        );
 
         res.status(201).json({
             team_id: team.id,

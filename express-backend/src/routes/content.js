@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Content, ContentNode, ContentEdit } = require('../models');
+const { Content, ContentNode, ContentEdit, ActivityLog } = require('../models');
 const { authMiddleware, checkTeamPermissions } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validation');
 const contentService = require('../services/contentService');
@@ -26,6 +26,16 @@ router.post('/scrape', authMiddleware, validate(schemas.scrapeContent), async (r
 
         const content = await Content.findByPk(contentId);
         console.log(`Successfully created content with ID: ${contentId}`);
+
+        // Log activity
+        await ActivityLog.logActivity(
+            team_id,
+            userId,
+            'content_created',
+            'content',
+            contentId,
+            { title: content.title, url: content.url }
+        );
 
         res.status(201).json({
             message: 'Content scraped successfully',

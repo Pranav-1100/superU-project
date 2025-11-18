@@ -6,6 +6,14 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const teamRoutes = require('./routes/team');
 const contentRoutes = require('./routes/content');
+// New feature routes
+const lockRoutes = require('./routes/locks');
+const commentRoutes = require('./routes/comments');
+const templateRoutes = require('./routes/templates');
+const activityRoutes = require('./routes/activity');
+const approvalRoutes = require('./routes/approvals');
+const diffRoutes = require('./routes/diff');
+const exportRoutes = require('./routes/export');
 
 // Import database configuration
 const db = require('./models');
@@ -41,6 +49,14 @@ app.use(cors({
 app.use('/api', authRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/content', contentRoutes);
+// New feature routes
+app.use('/api/locks', lockRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/templates', templateRoutes);
+app.use('/api/activity', activityRoutes);
+app.use('/api/approvals', approvalRoutes);
+app.use('/api/diff', diffRoutes);
+app.use('/api/export', exportRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

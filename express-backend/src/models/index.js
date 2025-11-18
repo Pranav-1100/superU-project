@@ -27,6 +27,12 @@ db.Invitation = require('./invitation')(sequelize, Sequelize.DataTypes);
 db.Content = require('./content')(sequelize, Sequelize.DataTypes);
 db.ContentNode = require('./contentNode')(sequelize, Sequelize.DataTypes);
 db.ContentEdit = require('./contentEdit')(sequelize, Sequelize.DataTypes);
+// New feature models
+db.ContentLock = require('./contentLock')(sequelize, Sequelize.DataTypes);
+db.Comment = require('./comment')(sequelize, Sequelize.DataTypes);
+db.ContentTemplate = require('./contentTemplate')(sequelize, Sequelize.DataTypes);
+db.ActivityLog = require('./activityLog')(sequelize, Sequelize.DataTypes);
+db.ApprovalRequest = require('./approvalRequest')(sequelize, Sequelize.DataTypes);
 
 // Define associations
 Object.keys(db).forEach(modelName => {
