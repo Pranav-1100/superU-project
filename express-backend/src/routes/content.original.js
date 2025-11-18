@@ -2,16 +2,18 @@ const express = require('express');
 const router = express.Router();
 const { Content, ContentNode, ContentEdit } = require('../models');
 const { authMiddleware, checkTeamPermissions } = require('../middleware/auth');
-const { validate, schemas } = require('../middleware/validation');
 const contentService = require('../services/contentService');
 const { Op } = require('sequelize');
 
 // Scrape and create content
-router.post('/scrape', authMiddleware, validate(schemas.scrapeContent), async (req, res) => {
+router.post('/scrape', authMiddleware, async (req, res) => {
     try {
         const { url, team_id } = req.body;
-        const userId = req.user.id;
+        if (!url || !team_id) {
+            return res.status(400).json({ error: 'URL and team_id are required' });
+        }
 
+        const userId = req.user.id;
         console.log(`User ${userId} attempting to scrape ${url}`);
 
         const hasPermission = await checkTeamPermissions(userId, team_id);
@@ -80,7 +82,7 @@ router.get('/:content_id', authMiddleware, async (req, res) => {
     }
 });
 
-// Get node content - FIXED: Added proper JSON.parse error handling
+// Get node content
 router.get('/node/:node_id', authMiddleware, async (req, res) => {
     try {
         const { node_id } = req.params;
@@ -103,22 +105,10 @@ router.get('/node/:node_id', authMiddleware, async (req, res) => {
             return res.status(403).json({ error: 'Unauthorized' });
         }
 
-        // FIXED: Safe JSON parsing with try-catch
-        let currentContentData = {};
-        try {
-            currentContentData = JSON.parse(node.Content.current_content);
-        } catch (parseError) {
-            console.error('Error parsing content JSON:', parseError);
-            return res.status(500).json({
-                error: 'Content data is corrupted',
-                code: 'content_parse_error'
-            });
-        }
-
         const nodeData = {
             id: node.id,
             title: node.title,
-            content: currentContentData[node.title]?.content || '',
+            content: JSON.parse(node.Content.current_content)[node.title]?.content || '',
             type: node.node_type,
             level: node.level
         };
@@ -126,8 +116,7 @@ router.get('/node/:node_id', authMiddleware, async (req, res) => {
         if (includeHistory) {
             const edits = await ContentEdit.findAll({
                 where: { node_id },
-                order: [['created_at', 'DESC']],
-                limit: 50 // Limit history to prevent large responses
+                order: [['created_at', 'DESC']]
             });
             nodeData.history = edits.map(edit => edit.toJSON());
         }
@@ -139,12 +128,15 @@ router.get('/node/:node_id', authMiddleware, async (req, res) => {
     }
 });
 
-// Update node content - FIXED: Added proper JSON.parse error handling
-router.put('/node/:node_id', authMiddleware, validate(schemas.updateNode), async (req, res) => {
+router.put('/node/:node_id', authMiddleware, async (req, res) => {
     try {
         const { node_id } = req.params;
         const { content: newContent } = req.body;
         const userId = req.user.id;
+
+        if (!newContent) {
+            return res.status(400).json({ error: 'Content is required' });
+        }
 
         const node = await ContentNode.findByPk(node_id, {
             include: [{ model: Content }]
@@ -159,17 +151,8 @@ router.put('/node/:node_id', authMiddleware, validate(schemas.updateNode), async
             return res.status(403).json({ error: 'Unauthorized' });
         }
 
-        // FIXED: Safe JSON parsing
-        let currentData = {};
-        try {
-            currentData = JSON.parse(node.Content.current_content);
-        } catch (parseError) {
-            console.error('Error parsing content JSON:', parseError);
-            return res.status(500).json({
-                error: 'Content data is corrupted',
-                code: 'content_parse_error'
-            });
-        }
+        // Get current content
+        const currentData = JSON.parse(node.Content.current_content);
 
         // Create edit history
         await ContentEdit.create({
@@ -192,16 +175,13 @@ router.put('/node/:node_id', authMiddleware, validate(schemas.updateNode), async
             updated_at: new Date()
         });
 
-        // Emit socket event if io is available
-        const io = req.app.get('io');
-        if (io) {
-            io.to(`content_${node.content_id}`).emit('content_updated', {
-                node_id,
-                content: newContent,
-                user_id: userId,
-                timestamp: new Date().toISOString()
-            });
-        }
+        // Emit socket event
+        req.app.get('io').to(`content_${node.content_id}`).emit('content_updated', {
+            node_id,
+            content: newContent,
+            user_id: userId,
+            timestamp: new Date().toISOString()
+        });
 
         res.json({
             message: 'Content updated successfully',
@@ -218,21 +198,15 @@ router.get('/team/:team_id', authMiddleware, async (req, res) => {
     try {
         const { team_id } = req.params;
         const userId = req.user.id;
-        const page = parseInt(req.query.page) || 1;
-        const limit = Math.min(parseInt(req.query.limit) || 20, 100); // Max 100 per page
-        const offset = (page - 1) * limit;
 
         const hasPermission = await checkTeamPermissions(userId, team_id);
         if (!hasPermission) {
             return res.status(403).json({ error: 'Unauthorized' });
         }
 
-        const { count, rows: contentList } = await Content.findAndCountAll({
+        const contentList = await Content.findAll({
             where: { team_id },
-            attributes: ['id', 'title', 'url', 'created_at', 'updated_at', 'meta'],
-            order: [['updated_at', 'DESC']],
-            limit,
-            offset
+            attributes: ['id', 'title', 'url', 'created_at', 'updated_at', 'meta']
         });
 
         res.json({
@@ -243,13 +217,7 @@ router.get('/team/:team_id', authMiddleware, async (req, res) => {
                 created_at: content.created_at,
                 updated_at: content.updated_at,
                 meta: content.meta
-            })),
-            pagination: {
-                page,
-                limit,
-                total: count,
-                totalPages: Math.ceil(count / limit)
-            }
+            }))
         });
     } catch (error) {
         console.error('Error listing content:', error);
@@ -262,9 +230,6 @@ router.get('/history/:node_id', authMiddleware, async (req, res) => {
     try {
         const { node_id } = req.params;
         const userId = req.user.id;
-        const page = parseInt(req.query.page) || 1;
-        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
-        const offset = (page - 1) * limit;
 
         const node = await ContentNode.findByPk(node_id, {
             include: [{ model: Content }]
@@ -279,21 +244,13 @@ router.get('/history/:node_id', authMiddleware, async (req, res) => {
             return res.status(403).json({ error: 'Unauthorized' });
         }
 
-        const { count, rows: edits } = await ContentEdit.findAndCountAll({
+        const edits = await ContentEdit.findAll({
             where: { node_id },
-            order: [['created_at', 'DESC']],
-            limit,
-            offset
+            order: [['created_at', 'DESC']]
         });
 
         res.json({
-            history: edits.map(edit => edit.toJSON()),
-            pagination: {
-                page,
-                limit,
-                total: count,
-                totalPages: Math.ceil(count / limit)
-            }
+            history: edits.map(edit => edit.toJSON())
         });
     } catch (error) {
         console.error('Error fetching content history:', error);
@@ -301,36 +258,30 @@ router.get('/history/:node_id', authMiddleware, async (req, res) => {
     }
 });
 
-// Search content - FIXED: SQL injection prevention
+// Search content
 router.get('/search/:team_id', authMiddleware, async (req, res) => {
     try {
         const { team_id } = req.params;
-        const query = req.query.q;
+        const { q: query } = req.query;
         const userId = req.user.id;
 
-        if (!query || query.trim().length === 0) {
+        if (!query) {
             return res.status(400).json({ error: 'Search query is required' });
         }
-
-        // Sanitize query - remove special SQL characters
-        const sanitizedQuery = query.trim().substring(0, 200);
 
         const hasPermission = await checkTeamPermissions(userId, team_id);
         if (!hasPermission) {
             return res.status(403).json({ error: 'Unauthorized' });
         }
 
-        // FIXED: Use parameterized query to prevent SQL injection
         const results = await Content.findAll({
             where: {
                 team_id,
                 [Op.or]: [
-                    { title: { [Op.like]: `%${sanitizedQuery}%` } },
-                    { current_content: { [Op.like]: `%${sanitizedQuery}%` } }
+                    { title: { [Op.like]: `%${query}%` } },
+                    { current_content: { [Op.like]: `%${query}%` } }
                 ]
-            },
-            attributes: ['id', 'title', 'url', 'updated_at'],
-            limit: 50 // Limit results
+            }
         });
 
         res.json({
@@ -339,8 +290,7 @@ router.get('/search/:team_id', authMiddleware, async (req, res) => {
                 title: content.title,
                 url: content.url,
                 updated_at: content.updated_at
-            })),
-            query: sanitizedQuery
+            }))
         });
     } catch (error) {
         console.error('Error searching content:', error);
